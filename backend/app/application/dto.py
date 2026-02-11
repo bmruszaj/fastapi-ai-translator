@@ -18,3 +18,12 @@ class TranslateResult:
     source_language: str
     target_language: str
     model: str
+
+
+@dataclass(frozen=True, slots=True)
+class HealthStatus:
+    """Health information returned by health status use case."""
+
+    status: str
+    model: str
+    loaded: bool
