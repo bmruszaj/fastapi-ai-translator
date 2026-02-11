@@ -1,5 +1,9 @@
+from collections.abc import Callable
+from contextlib import AbstractContextManager
+from dataclasses import dataclass
 import logging
 import threading
+from typing import Any
 
 import torch
 from transformers import (
@@ -96,6 +100,20 @@ def _validate_runtime_device(device: torch.device) -> None:
             )
 
 
+@dataclass(slots=True, frozen=True)
+class NllbRuntimeDependencies:
+    """Runtime collaborators for model loading and execution."""
+
+    create_device: Callable[[str], torch.device] = torch.device
+    validate_device: Callable[[torch.device], None] = _validate_runtime_device
+    load_tokenizer: Callable[..., PreTrainedTokenizerBase] = (
+        AutoTokenizer.from_pretrained
+    )
+    load_config: Callable[..., Any] = AutoConfig.from_pretrained
+    load_model: Callable[..., Any] = AutoModelForSeq2SeqLM.from_pretrained
+    inference_mode: Callable[[], AbstractContextManager[Any]] = torch.inference_mode
+
+
 class NllbTranslator(TranslatorPort):
     """Translate text with a startup-loaded NLLB model."""
 
@@ -105,14 +123,16 @@ class NllbTranslator(TranslatorPort):
         max_new_tokens: int = 256,
         device: str = "cpu",
         cache_dir: str | None = None,
+        runtime_dependencies: NllbRuntimeDependencies | None = None,
     ) -> None:
         self._model_id = model_id
         self._max_new_tokens = max_new_tokens
         self._lock = threading.Lock()
         self._is_ready = False
+        self._runtime_dependencies = runtime_dependencies or NllbRuntimeDependencies()
         try:
-            self._device = torch.device(device)
-            _validate_runtime_device(self._device)
+            self._device = self._runtime_dependencies.create_device(device)
+            self._runtime_dependencies.validate_device(self._device)
             load_kwargs: dict[str, str] = {}
             if cache_dir:
                 load_kwargs["cache_dir"] = cache_dir
@@ -120,13 +140,17 @@ class NllbTranslator(TranslatorPort):
                 "Loading tokenizer for model '%s'. If not cached, files may be downloaded from Hugging Face.",
                 model_id,
             )
-            self._tokenizer = AutoTokenizer.from_pretrained(model_id, **load_kwargs)
-            model_config = AutoConfig.from_pretrained(model_id, **load_kwargs)
+            self._tokenizer = self._runtime_dependencies.load_tokenizer(
+                model_id, **load_kwargs
+            )
+            model_config = self._runtime_dependencies.load_config(
+                model_id, **load_kwargs
+            )
             if getattr(model_config, "tie_word_embeddings", None) is not False:
                 # Keep embeddings untied to match this checkpoint layout and silence tied-weight warnings.
                 model_config.tie_word_embeddings = False
             logger.info("Loading model weights for '%s'.", model_id)
-            self._model = AutoModelForSeq2SeqLM.from_pretrained(
+            self._model = self._runtime_dependencies.load_model(
                 model_id, config=model_config, **load_kwargs
             )
             self._model.to(self._device)
@@ -160,7 +184,7 @@ class NllbTranslator(TranslatorPort):
                     model_id=self._model_id,
                 )
 
-                with torch.inference_mode():
+                with self._runtime_dependencies.inference_mode():
                     generated_tokens = self._model.generate(
                         **tokenized_input,
                         forced_bos_token_id=forced_bos_token_id,

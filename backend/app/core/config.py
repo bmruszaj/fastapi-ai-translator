@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import os
 import re
 from dataclasses import dataclass
@@ -11,33 +12,37 @@ DEFAULT_DEVICE = "cpu"
 DEVICE_PATTERN = re.compile(r"^(cpu|mps|cuda(?::\d+)?)$")
 
 
-def _read_str_env(name: str, default: str) -> str:
+def _read_env_value(name: str, env: Mapping[str, object]) -> str | None:
+    """Read environment variable and validate raw value type."""
+    raw_value = env.get(name)
+    if raw_value is None:
+        return None
+    if not isinstance(raw_value, str):
+        raise ValueError(f"Environment variable {name} must be a string.")
+    return raw_value.strip()
+
+
+def _read_str_env(name: str, default: str, env: Mapping[str, object]) -> str:
     """Read a string environment variable and fallback on empty values."""
-    raw_value = os.getenv(name)
-    if raw_value is None:
+    normalized_value = _read_env_value(name, env)
+    if normalized_value is None:
         return default
-
-    normalized_value = raw_value.strip()
     if not normalized_value:
         return default
     return normalized_value
 
 
-def _read_optional_str_env(name: str) -> str | None:
+def _read_optional_str_env(name: str, env: Mapping[str, object]) -> str | None:
     """Read an optional string environment variable and normalize empty values to None."""
-    raw_value = os.getenv(name)
-    if raw_value is None:
-        return None
-
-    normalized_value = raw_value.strip()
+    normalized_value = _read_env_value(name, env)
     if not normalized_value:
         return None
     return normalized_value
 
 
-def _read_device_env(name: str, default: str) -> str:
+def _read_device_env(name: str, default: str, env: Mapping[str, object]) -> str:
     """Read and validate torch device from environment variables."""
-    device_value = _read_str_env(name, default).lower()
+    device_value = _read_str_env(name, default, env).lower()
     if not DEVICE_PATTERN.fullmatch(device_value):
         raise ValueError(
             f"Environment variable {name} must be one of: cpu, mps, cuda, cuda:<index>."
@@ -45,13 +50,9 @@ def _read_device_env(name: str, default: str) -> str:
     return device_value
 
 
-def _read_int_env(name: str, default: int) -> int:
+def _read_int_env(name: str, default: int, env: Mapping[str, object]) -> int:
     """Read a positive integer environment variable with a fallback value."""
-    raw_value = os.getenv(name)
-    if raw_value is None:
-        return default
-
-    normalized_value = raw_value.strip()
+    normalized_value = _read_env_value(name, env)
     if not normalized_value:
         return default
 
@@ -77,18 +78,23 @@ class AppSettings:
     transformers_cache: str | None = None
 
     @classmethod
-    def from_env(cls) -> "AppSettings":
+    def from_env(cls, env: Mapping[str, object] | None = None) -> "AppSettings":
         """Build settings from environment variables."""
+        resolved_env = env if env is not None else os.environ
         return cls(
-            model_id=_read_str_env("APP_MODEL_ID", DEFAULT_MODEL_ID),
+            model_id=_read_str_env("APP_MODEL_ID", DEFAULT_MODEL_ID, resolved_env),
             max_input_chars=_read_int_env(
-                "APP_MAX_INPUT_CHARS", DEFAULT_MAX_INPUT_CHARS
+                "APP_MAX_INPUT_CHARS", DEFAULT_MAX_INPUT_CHARS, resolved_env
             ),
-            max_new_tokens=_read_int_env("APP_MAX_NEW_TOKENS", DEFAULT_MAX_NEW_TOKENS),
-            device=_read_device_env("APP_DEVICE", DEFAULT_DEVICE),
-            hf_home=_read_optional_str_env("HF_HOME"),
-            hf_hub_cache=_read_optional_str_env("HF_HUB_CACHE"),
-            transformers_cache=_read_optional_str_env("TRANSFORMERS_CACHE"),
+            max_new_tokens=_read_int_env(
+                "APP_MAX_NEW_TOKENS", DEFAULT_MAX_NEW_TOKENS, resolved_env
+            ),
+            device=_read_device_env("APP_DEVICE", DEFAULT_DEVICE, resolved_env),
+            hf_home=_read_optional_str_env("HF_HOME", resolved_env),
+            hf_hub_cache=_read_optional_str_env("HF_HUB_CACHE", resolved_env),
+            transformers_cache=_read_optional_str_env(
+                "TRANSFORMERS_CACHE", resolved_env
+            ),
         )
 
     def resolve_cache_dir(self) -> str | None:
