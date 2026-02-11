@@ -109,6 +109,7 @@ class NllbTranslator(TranslatorPort):
         self._model_id = model_id
         self._max_new_tokens = max_new_tokens
         self._lock = threading.Lock()
+        self._is_ready = False
         try:
             self._device = torch.device(device)
             _validate_runtime_device(self._device)
@@ -130,6 +131,7 @@ class NllbTranslator(TranslatorPort):
             )
             self._model.to(self._device)
             self._model.eval()
+            self._is_ready = True
             logger.info(
                 "Model '%s' loaded successfully on device '%s'.", model_id, self._device
             )
@@ -177,3 +179,7 @@ class NllbTranslator(TranslatorPort):
         if not decoded_text:
             return ""
         return decoded_text[0].strip()
+
+    def is_ready(self) -> bool:
+        """Report whether the translator model artifacts are loaded and ready."""
+        return self._is_ready
