@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 from app.application.use_cases.translate_text import TranslateTextUseCase  # noqa: E402
 from app.application.use_cases.get_health_status import GetHealthStatusUseCase  # noqa: E402
 from app.bootstrap.container import AppContainer  # noqa: E402
-from app.core.config import AppSettings, DEFAULT_MAX_INPUT_CHARS  # noqa: E402
+from app.core.config import AppSettings  # noqa: E402
 from app.main import create_app  # noqa: E402
 from tests.fakes import FakeTranslator  # noqa: E402
 from tests.fakes_nllb import FakeConfig, FakeModel, FakeTensor, FakeTokenizer  # noqa: E402
@@ -35,7 +35,7 @@ def app(fake_translator: FakeTranslator) -> FastAPI:
     """Create a FastAPI app wired with fake dependencies."""
     settings = AppSettings(
         model_id="fake-model",
-        max_input_chars=DEFAULT_MAX_INPUT_CHARS,
+        max_input_tokens=400,
         max_new_tokens=32,
         device="cpu",
     )
@@ -44,7 +44,6 @@ def app(fake_translator: FakeTranslator) -> FastAPI:
         translate_use_case = TranslateTextUseCase(
             translator=fake_translator,
             model_id=runtime_settings.model_id,
-            max_input_chars=runtime_settings.max_input_chars,
         )
         health_use_case = GetHealthStatusUseCase(
             model_id=runtime_settings.model_id,

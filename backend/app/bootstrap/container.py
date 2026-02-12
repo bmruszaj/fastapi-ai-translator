@@ -23,22 +23,27 @@ def build_container(settings: AppSettings) -> AppContainer:
     logger.info("Building application container.")
     cache_dir = settings.resolve_cache_dir()
     logger.info(
-        "Initializing translator adapter (model_id=%s, device=%s, max_new_tokens=%s, cache_dir=%s).",
+        "Initializing translator adapter "
+        "(model_id=%s, device=%s, max_input_tokens=%s, max_new_tokens=%s, "
+        "repetition_penalty=%s, cache_dir=%s).",
         settings.model_id,
         settings.device,
+        settings.max_input_tokens,
         settings.max_new_tokens,
+        settings.repetition_penalty,
         cache_dir,
     )
     translator = NllbTranslator(
         model_id=settings.model_id,
+        max_input_tokens=settings.max_input_tokens,
         max_new_tokens=settings.max_new_tokens,
+        repetition_penalty=settings.repetition_penalty,
         device=settings.device,
         cache_dir=cache_dir,
     )
     translate_text_use_case = TranslateTextUseCase(
         translator=translator,
         model_id=settings.model_id,
-        max_input_chars=settings.max_input_chars,
     )
     get_health_status_use_case = GetHealthStatusUseCase(
         model_id=settings.model_id,

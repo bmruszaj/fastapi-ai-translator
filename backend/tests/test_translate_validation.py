@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.application.ports.errors import TranslationExecutionError
+from app.application.ports.errors import InputTooLongError, TranslationExecutionError
 from app.domain.errors import DomainError
 from tests.fakes import FakeTranslator
 
@@ -27,18 +27,11 @@ from tests.fakes import FakeTranslator
             "empty_text",
             "Text must not be empty.",
         ),
-        (
-            {"text": "", "source_language": "en", "target_language": "fr"},
-            422,
-            "text_too_long",
-            None,
-        ),
     ],
     ids=[
         "unsupported_language",
         "same_language_pair",
         "whitespace_only_text",
-        "text_too_long",
     ],
 )
 def test_translate_returns_domain_error_for_invalid_payload(
@@ -46,13 +39,10 @@ def test_translate_returns_domain_error_for_invalid_payload(
     payload: dict[str, str],
     expected_status: int,
     expected_code: str,
-    expected_message: str | None,
+    expected_message: str,
 ) -> None:
     # Given
     request_payload = payload.copy()
-    if expected_code == "text_too_long":
-        max_input_chars = client.app.state.container.settings.max_input_chars
-        request_payload["text"] = "a" * (max_input_chars + 1)
 
     # When
     response = client.post("/api/translate", json=request_payload)
@@ -61,16 +51,7 @@ def test_translate_returns_domain_error_for_invalid_payload(
     # Then
     assert response.status_code == expected_status
     assert response_body["code"] == expected_code
-
-    if expected_message is not None:
-        assert response_body["message"] == expected_message
-        return
-
-    max_input_chars = client.app.state.container.settings.max_input_chars
-    assert response_body["message"] == (
-        f"Text exceeds max length of {max_input_chars} characters "
-        f"(received {len(request_payload['text'])})."
-    )
+    assert response_body["message"] == expected_message
 
 
 @pytest.mark.parametrize(
@@ -138,6 +119,30 @@ def test_translate_returns_unavailable_error_for_translator_port_failure(
     assert response.json() == {
         "code": "translation_execution_failed",
         "message": "Translation service temporarily unavailable.",
+    }
+
+
+def test_translate_returns_text_too_long_for_tokenizer_limit(
+    client: TestClient,
+    fake_translator: FakeTranslator,
+    default_translate_payload: dict[str, str],
+) -> None:
+    max_input_tokens = client.app.state.container.settings.max_input_tokens
+    actual_tokens = max_input_tokens + 1
+    fake_translator.translate_error = InputTooLongError(
+        f"Text exceeds max length of {max_input_tokens} tokens "
+        f"(received {actual_tokens})."
+    )
+
+    response = client.post("/api/translate", json=default_translate_payload)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "text_too_long",
+        "message": (
+            f"Text exceeds max length of {max_input_tokens} tokens "
+            f"(received {actual_tokens})."
+        ),
     }
 
 
