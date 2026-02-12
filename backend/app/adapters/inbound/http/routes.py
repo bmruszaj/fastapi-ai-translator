@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.adapters.inbound.http.schemas import (
     ErrorResponse,
+    FrontendConfigResponse,
     HealthResponse,
     LanguagesResponse,
     TranslateRequest,
@@ -14,8 +15,10 @@ from app.application.dto import TranslateCommand
 from app.application.ports.errors import InputTooLongError, TranslatorPortError
 from app.application.use_cases.get_health_status import GetHealthStatusUseCase
 from app.application.use_cases.translate_text import TranslateTextUseCase
+from app.core.config import AppSettings
 from app.core.dependencies import (
     get_health_status_use_case,
+    get_settings,
     get_translate_use_case,
 )
 from app.domain.errors import (
@@ -76,6 +79,19 @@ def health(
 def languages() -> LanguagesResponse:
     """Return supported translation languages."""
     return LanguagesResponse(languages=SUPPORTED)
+
+
+@router.get("/frontend-config", response_model=FrontendConfigResponse)
+def frontend_config(
+    settings: AppSettings = Depends(get_settings),
+) -> FrontendConfigResponse:
+    """Return frontend runtime limits."""
+    return FrontendConfigResponse(
+        max_input_tokens=settings.frontend_max_input_tokens,
+        max_chars_per_token=settings.frontend_max_chars_per_token,
+        max_input_chars=settings.resolve_frontend_max_input_chars(),
+        warning_input_chars=settings.resolve_frontend_warning_input_chars(),
+    )
 
 
 @router.post(

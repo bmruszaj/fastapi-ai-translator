@@ -26,6 +26,15 @@ class LanguagesResponse(BaseModel):
     languages: list[str]
 
 
+class FrontendConfigResponse(BaseModel):
+    """Frontend runtime configuration payload."""
+
+    max_input_tokens: int
+    max_chars_per_token: int
+    max_input_chars: int
+    warning_input_chars: int
+
+
 class HealthResponse(BaseModel):
     """Health endpoint response payload."""
 

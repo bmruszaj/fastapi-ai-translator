@@ -3,6 +3,7 @@ from fastapi import Depends, Request
 from app.application.use_cases.get_health_status import GetHealthStatusUseCase
 from app.application.use_cases.translate_text import TranslateTextUseCase
 from app.bootstrap.container import AppContainer
+from app.core.config import AppSettings
 from app.core.errors import InvalidContainerTypeError, ContainerNotInitializedError
 
 
@@ -28,3 +29,10 @@ def get_health_status_use_case(
 ) -> GetHealthStatusUseCase:
     """Return the health status use case from the application container."""
     return container.get_health_status_use_case
+
+
+def get_settings(
+    container: AppContainer = Depends(get_container),
+) -> AppSettings:
+    """Return the application settings from the container."""
+    return container.settings
