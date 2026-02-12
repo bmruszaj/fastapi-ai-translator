@@ -14,6 +14,7 @@ from transformers import (
 )
 
 from app.application.ports.errors import (
+    InputTooLongError,
     TranslationExecutionError,
     TranslatorUnavailableError,
 )
@@ -100,6 +101,32 @@ def _validate_runtime_device(device: torch.device) -> None:
             )
 
 
+def _resolve_input_token_count(tokenized_input: dict[str, Any], model_id: str) -> int:
+    """Extract input token count from tokenized input payload."""
+    input_ids = tokenized_input.get("input_ids")
+    if input_ids is None:
+        raise TranslationExecutionError(
+            f"Tokenizer for model '{model_id}' did not return input_ids."
+        )
+
+    token_count: int | None = None
+    input_shape = getattr(input_ids, "shape", None)
+    if input_shape is not None and len(input_shape) > 0:
+        last_dimension = input_shape[-1]
+        if isinstance(last_dimension, int):
+            token_count = last_dimension
+
+    if token_count is None:
+        raise TranslationExecutionError(
+            f"Tokenizer for model '{model_id}' returned input_ids without a valid shape."
+        )
+    if token_count < 0:
+        raise TranslationExecutionError(
+            f"Tokenizer for model '{model_id}' returned invalid token count {token_count}."
+        )
+    return token_count
+
+
 @dataclass(slots=True, frozen=True)
 class NllbRuntimeDependencies:
     """Runtime collaborators for model loading and execution."""
@@ -120,13 +147,17 @@ class NllbTranslator(TranslatorPort):
     def __init__(
         self,
         model_id: str,
-        max_new_tokens: int = 256,
+        max_input_tokens: int,
+        repetition_penalty: float,
+        max_new_tokens: int,
         device: str = "cpu",
         cache_dir: str | None = None,
         runtime_dependencies: NllbRuntimeDependencies | None = None,
     ) -> None:
         self._model_id = model_id
         self._max_new_tokens = max_new_tokens
+        self._max_input_tokens = max_input_tokens
+        self._repetition_penalty = repetition_penalty
         self._lock = threading.Lock()
         self._is_ready = False
         self._runtime_dependencies = runtime_dependencies or NllbRuntimeDependencies()
@@ -174,6 +205,15 @@ class NllbTranslator(TranslatorPort):
                 model_target = _to_nllb_language_code(target)
                 self._tokenizer.src_lang = model_source
                 tokenized_input = self._tokenizer(text, return_tensors="pt")
+                input_token_count = _resolve_input_token_count(
+                    tokenized_input=tokenized_input,
+                    model_id=self._model_id,
+                )
+                if input_token_count > self._max_input_tokens:
+                    raise InputTooLongError(
+                        f"Text exceeds max length of {self._max_input_tokens} tokens "
+                        f"(received {input_token_count})."
+                    )
                 tokenized_input = {
                     name: values.to(self._device)
                     for name, values in tokenized_input.items()
@@ -189,11 +229,12 @@ class NllbTranslator(TranslatorPort):
                         **tokenized_input,
                         forced_bos_token_id=forced_bos_token_id,
                         max_new_tokens=self._max_new_tokens,
+                        repetition_penalty=self._repetition_penalty,  # reduce likelihood of repetitive phrases in the output
                     )
                 decoded_text = self._tokenizer.batch_decode(
                     generated_tokens, skip_special_tokens=True
                 )
-        except TranslationExecutionError:
+        except (InputTooLongError, TranslationExecutionError):
             raise
         except Exception as error:
             raise TranslationExecutionError(

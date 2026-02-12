@@ -6,11 +6,16 @@ from typing import Any
 class FakeTensor:
     """Tensor-like object used to avoid real torch tensors in tests."""
 
+    token_count: int = 1
     moved_to_device: Any = None
 
     def to(self, device: Any) -> "FakeTensor":
         self.moved_to_device = device
         return self
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return (1, self.token_count)
 
 
 @dataclass(slots=True)
@@ -30,18 +35,23 @@ class FakeTokenizer:
         converted_token_id: int | None = 101,
         decoded_text: str = "translated",
         unk_token_id: int | None = 0,
+        input_token_count: int = 1,
     ) -> None:
         self.lang_code_to_id = lang_code_to_id
         self._converted_token_id = converted_token_id
         self._decoded_text = decoded_text
         self.unk_token_id = unk_token_id
+        self._input_token_count = input_token_count
         self.src_lang: str | None = None
         self.convert_calls: list[str] = []
 
     def __call__(self, text: str, return_tensors: str) -> dict[str, FakeTensor]:
         _ = text
         _ = return_tensors
-        return {"input_ids": FakeTensor(), "attention_mask": FakeTensor()}
+        return {
+            "input_ids": FakeTensor(token_count=self._input_token_count),
+            "attention_mask": FakeTensor(token_count=self._input_token_count),
+        }
 
     def convert_tokens_to_ids(self, token: str) -> int | None:
         self.convert_calls.append(token)

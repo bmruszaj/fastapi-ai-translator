@@ -17,3 +17,9 @@ class TranslationExecutionError(TranslatorPortError):
     """Raised when translation execution fails."""
 
     code = "translation_execution_failed"
+
+
+class InputTooLongError(TranslatorPortError):
+    """Raised when tokenized input exceeds configured limit."""
+
+    code = "text_too_long"

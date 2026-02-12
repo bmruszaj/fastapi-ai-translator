@@ -4,6 +4,7 @@ import pytest
 
 from app.adapters.outbound import nllb_translator
 from app.application.ports.errors import (
+    InputTooLongError,
     TranslationExecutionError,
     TranslatorUnavailableError,
 )
@@ -26,6 +27,9 @@ def test_init_raises_unavailable_on_tokenizer_load_failure(
     ):
         nllb_translator.NllbTranslator(
             model_id="fake-model",
+            max_input_tokens=1024,
+            repetition_penalty=1.2,
+            max_new_tokens=256,
             runtime_dependencies=runtime_dependencies,
         )
 
@@ -57,6 +61,9 @@ def test_init_passes_cache_dir_to_loaders(
     # When
     _ = nllb_translator.NllbTranslator(
         model_id="fake-model",
+        max_input_tokens=1024,
+        repetition_penalty=1.2,
+        max_new_tokens=256,
         cache_dir="/tmp/cache",
         runtime_dependencies=runtime_dependencies,
     )
@@ -96,6 +103,9 @@ def test_translate_raises_for_invalid_forced_bos_token(
     )
     translator = nllb_translator.NllbTranslator(
         model_id="fake-model",
+        max_input_tokens=1024,
+        repetition_penalty=1.2,
+        max_new_tokens=256,
         runtime_dependencies=runtime_dependencies,
     )
 
@@ -126,6 +136,9 @@ def test_translate_raises_for_unknown_target_token(
     )
     translator = nllb_translator.NllbTranslator(
         model_id="fake-model",
+        max_input_tokens=1024,
+        repetition_penalty=1.2,
+        max_new_tokens=256,
         runtime_dependencies=runtime_dependencies,
     )
 
@@ -135,6 +148,40 @@ def test_translate_raises_for_unknown_target_token(
         match="resolved target language 'fra_Latn' to unknown token",
     ):
         translator.translate(text="hello", source="en", target="fr")
+
+
+def test_translate_raises_for_input_too_long(
+    fake_tokenizer_cls: type[FakeTokenizer],
+    fake_model_cls: type[FakeModel],
+    get_nllb_runtime_dependencies: Callable[
+        ..., nllb_translator.NllbRuntimeDependencies
+    ],
+) -> None:
+    # Given
+    tokenizer = fake_tokenizer_cls(
+        lang_code_to_id={"fra_Latn": 17},
+        input_token_count=1025,
+    )
+    model = fake_model_cls()
+    runtime_dependencies = get_nllb_runtime_dependencies(
+        tokenizer=tokenizer, model=model
+    )
+    translator = nllb_translator.NllbTranslator(
+        model_id="fake-model",
+        max_input_tokens=1024,
+        repetition_penalty=1.2,
+        max_new_tokens=256,
+        runtime_dependencies=runtime_dependencies,
+    )
+
+    # When / Then
+    with pytest.raises(
+        InputTooLongError,
+        match="Text exceeds max length of 1024 tokens \\(received 1025\\).",
+    ):
+        translator.translate(text="hello", source="en", target="fr")
+
+    assert model.generate_calls == []
 
 
 def test_translate_returns_decoded_text_for_valid_pair(
@@ -157,6 +204,8 @@ def test_translate_returns_decoded_text_for_valid_pair(
     translator = nllb_translator.NllbTranslator(
         model_id="fake-model",
         max_new_tokens=77,
+        max_input_tokens=1024,
+        repetition_penalty=1.2,
         runtime_dependencies=runtime_dependencies,
     )
 
@@ -192,6 +241,9 @@ def test_translate_raises_for_model_runtime_error(
     )
     translator = nllb_translator.NllbTranslator(
         model_id="fake-model",
+        max_input_tokens=1024,
+        repetition_penalty=1.2,
+        max_new_tokens=256,
         runtime_dependencies=runtime_dependencies,
     )
 
