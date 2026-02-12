@@ -1,0 +1,38 @@
+image: python:3.12-slim
+
+stages:
+  - format
+  - lint
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: "${CI_PROJECT_NAME}-pip"
+  paths:
+    - .cache/pip
+
+format:
+  stage: format
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install ruff==0.15.0
+  script:
+    - ruff format --check .
+
+lint:
+  stage: lint
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install ruff==0.15.0
+  script:
+    - ruff check .
+
+test:
+  stage: test
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install fastapi==0.128.5 httpx==0.28.1 pytest==9.0.2
+  script:
+    - pytest
