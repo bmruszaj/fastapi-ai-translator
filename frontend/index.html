@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Translator Workspace</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/js/main.js"></script>
+</head>
+<body>
+<main class="page">
+    <section class="card">
+        <header class="header">
+            <p class="eyebrow">TRANSLATION WORKSPACE</p>
+            <h1>AI-Powered Text Translation</h1>
+            <p class="subhead">Break language barriers instantly across supported European languages.</p>
+        </header>
+
+        <form id="translate-form" class="form" novalidate>
+            <div class="field-group">
+                <label for="source-text">Source text</label>
+                <textarea
+                    id="source-text"
+                    name="source_text"
+                    rows="8"
+                    placeholder="Write or paste your text here"
+                    aria-describedby="char-counter length-warning"
+                    required
+                ></textarea>
+                <div class="field-footer">
+                    <p id="char-counter" class="hint">0 / 800 chars</p>
+                    <p id="length-warning" class="warning" hidden>Character limit reached.</p>
+                </div>
+            </div>
+
+            <div class="language-grid">
+                <div class="field-group">
+                    <label for="source-language">Source language</label>
+                    <div class="custom-select" id="source-select">
+                        <button
+                            type="button"
+                            id="source-language-button"
+                            class="select-button"
+                            aria-haspopup="listbox"
+                            aria-expanded="false"
+                            aria-controls="source-language-options"
+                        >
+                            <img id="source-language-flag" class="select-flag" src="" alt="">
+                            <span id="source-language-label" class="select-label">Select language</span>
+                            <span class="select-chevron" aria-hidden="true">v</span>
+                        </button>
+                        <ul id="source-language-options" class="select-options" role="listbox"></ul>
+                    </div>
+                    <select id="source-language" name="source_language" class="native-select"></select>
+                </div>
+                <button
+                    type="button"
+                    id="swap-button"
+                    class="icon-button icon-only-button"
+                    aria-label="Swap languages"
+                    title="Swap languages"
+                >
+                    <svg class="swap-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M4 7H18"></path>
+                        <path d="M14 3L18 7L14 11"></path>
+                        <path d="M20 17H6"></path>
+                        <path d="M10 13L6 17L10 21"></path>
+                    </svg>
+                </button>
+                <div class="field-group">
+                    <label for="target-language">Target language</label>
+                    <div class="custom-select" id="target-select">
+                        <button
+                            type="button"
+                            id="target-language-button"
+                            class="select-button"
+                            aria-haspopup="listbox"
+                            aria-expanded="false"
+                            aria-controls="target-language-options"
+                        >
+                            <img id="target-language-flag" class="select-flag" src="" alt="">
+                            <span id="target-language-label" class="select-label">Select language</span>
+                            <span class="select-chevron" aria-hidden="true">v</span>
+                        </button>
+                        <ul id="target-language-options" class="select-options" role="listbox"></ul>
+                    </div>
+                    <select id="target-language" name="target_language" class="native-select"></select>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" id="translate-button" class="primary-button">
+                    <span id="translate-button-spinner" class="button-spinner" hidden></span>
+                    <span id="translate-button-label">Translate</span>
+                </button>
+            </div>
+        </form>
+
+        <section class="output-section" aria-labelledby="translated-label">
+            <div class="output-header">
+                <h2 id="translated-label">Translated text</h2>
+                <button
+                    type="button"
+                    id="copy-button"
+                    class="secondary-button icon-only-button"
+                    aria-label="Copy result"
+                    title="Copy result"
+                    disabled
+                >
+                    <span class="copy-button-icon" aria-hidden="true">
+                        <svg
+                            id="copy-icon-default"
+                            class="copy-icon is-visible"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                        >
+                            <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                            <path d="M15 7V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1"></path>
+                        </svg>
+                        <svg
+                            id="copy-icon-success"
+                            class="copy-icon copy-icon-success"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                        >
+                            <path d="M5 12.5L9.2 16.5L19 7.5"></path>
+                        </svg>
+                    </span>
+                </button>
+            </div>
+            <textarea
+                id="translated-text"
+                name="translated_text"
+                rows="8"
+                placeholder="Your translation will appear here"
+                readonly
+            ></textarea>
+        </section>
+
+        <section class="messages" aria-live="polite" aria-atomic="true">
+            <p id="status-message" class="status-message" hidden></p>
+            <p id="error-message" class="error-message" hidden></p>
+        </section>
+    </section>
+</main>
+</body>
+</html>
