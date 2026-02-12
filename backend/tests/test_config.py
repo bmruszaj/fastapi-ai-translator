@@ -6,16 +6,24 @@ from pathlib import Path
 import pytest
 from app.core.config import (
     DEFAULT_DEVICE,
-    DEFAULT_MAX_INPUT_CHARS,
+    DEFAULT_FRONTEND_MAX_CHARS_PER_TOKEN,
+    DEFAULT_FRONTEND_MAX_INPUT_TOKENS,
+    DEFAULT_FRONTEND_WARNING_RATIO,
+    DEFAULT_MAX_INPUT_TOKENS,
     DEFAULT_MAX_NEW_TOKENS,
     DEFAULT_MODEL_ID,
+    DEFAULT_REPETITION_PENALTY,
     AppSettings,
 )
 
 CONFIG_ENV_KEYS: tuple[str, ...] = (
     "APP_MODEL_ID",
-    "APP_MAX_INPUT_CHARS",
+    "APP_MAX_INPUT_TOKENS",
     "APP_MAX_NEW_TOKENS",
+    "APP_FRONTEND_MAX_INPUT_TOKENS",
+    "APP_FRONTEND_MAX_CHARS_PER_TOKEN",
+    "APP_FRONTEND_WARNING_RATIO",
+    "APP_REPETITION_PENALTY",
     "APP_DEVICE",
     "HF_HOME",
     "HF_HUB_CACHE",
@@ -45,8 +53,12 @@ def test_from_env_uses_defaults_when_variables_are_missing() -> None:
 
     # Then
     assert settings.model_id == DEFAULT_MODEL_ID
-    assert settings.max_input_chars == DEFAULT_MAX_INPUT_CHARS
+    assert settings.max_input_tokens == DEFAULT_MAX_INPUT_TOKENS
     assert settings.max_new_tokens == DEFAULT_MAX_NEW_TOKENS
+    assert settings.frontend_max_input_tokens == DEFAULT_FRONTEND_MAX_INPUT_TOKENS
+    assert settings.frontend_max_chars_per_token == DEFAULT_FRONTEND_MAX_CHARS_PER_TOKEN
+    assert settings.frontend_warning_ratio == DEFAULT_FRONTEND_WARNING_RATIO
+    assert settings.repetition_penalty == DEFAULT_REPETITION_PENALTY
     assert settings.device == DEFAULT_DEVICE
     assert settings.hf_home is None
     assert settings.hf_hub_cache is None
@@ -57,8 +69,12 @@ def test_from_env_falls_back_for_empty_values() -> None:
     # Given
     env = {
         "APP_MODEL_ID": "   ",
-        "APP_MAX_INPUT_CHARS": "",
+        "APP_MAX_INPUT_TOKENS": "",
         "APP_MAX_NEW_TOKENS": " ",
+        "APP_FRONTEND_MAX_INPUT_TOKENS": " ",
+        "APP_FRONTEND_MAX_CHARS_PER_TOKEN": " ",
+        "APP_FRONTEND_WARNING_RATIO": "\t",
+        "APP_REPETITION_PENALTY": "\n",
         "APP_DEVICE": "\t",
         "HF_HOME": " ",
         "HF_HUB_CACHE": " ",
@@ -70,8 +86,12 @@ def test_from_env_falls_back_for_empty_values() -> None:
 
     # Then
     assert settings.model_id == DEFAULT_MODEL_ID
-    assert settings.max_input_chars == DEFAULT_MAX_INPUT_CHARS
+    assert settings.max_input_tokens == DEFAULT_MAX_INPUT_TOKENS
     assert settings.max_new_tokens == DEFAULT_MAX_NEW_TOKENS
+    assert settings.frontend_max_input_tokens == DEFAULT_FRONTEND_MAX_INPUT_TOKENS
+    assert settings.frontend_max_chars_per_token == DEFAULT_FRONTEND_MAX_CHARS_PER_TOKEN
+    assert settings.frontend_warning_ratio == DEFAULT_FRONTEND_WARNING_RATIO
+    assert settings.repetition_penalty == DEFAULT_REPETITION_PENALTY
     assert settings.device == DEFAULT_DEVICE
     assert settings.hf_home is None
     assert settings.hf_hub_cache is None
@@ -79,7 +99,13 @@ def test_from_env_falls_back_for_empty_values() -> None:
 
 
 @pytest.mark.parametrize(
-    ("key", "value"), [("APP_MAX_INPUT_CHARS", "0"), ("APP_MAX_NEW_TOKENS", "-1")]
+    ("key", "value"),
+    [
+        ("APP_MAX_INPUT_TOKENS", "0"),
+        ("APP_MAX_NEW_TOKENS", "-1"),
+        ("APP_FRONTEND_MAX_INPUT_TOKENS", "0"),
+        ("APP_FRONTEND_MAX_CHARS_PER_TOKEN", "0"),
+    ],
 )
 def test_from_env_rejects_non_positive_integer_values(
     key: str,
@@ -93,10 +119,38 @@ def test_from_env_rejects_non_positive_integer_values(
         AppSettings.from_env(env=env)
 
 
-def test_from_env_rejects_non_string_env_values() -> None:
-    env = {"APP_MAX_INPUT_CHARS": 123}
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [("0", "APP_REPETITION_PENALTY"), ("abc", "APP_REPETITION_PENALTY")],
+)
+def test_from_env_rejects_invalid_repetition_penalty(
+    value: str,
+    message: str,
+) -> None:
+    env = {"APP_REPETITION_PENALTY": value}
 
-    with pytest.raises(ValueError, match="APP_MAX_INPUT_CHARS"):
+    with pytest.raises(ValueError, match=message):
+        AppSettings.from_env(env=env)
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [("0", "APP_FRONTEND_WARNING_RATIO"), ("1", "APP_FRONTEND_WARNING_RATIO")],
+)
+def test_from_env_rejects_invalid_frontend_warning_ratio(
+    value: str,
+    message: str,
+) -> None:
+    env = {"APP_FRONTEND_WARNING_RATIO": value}
+
+    with pytest.raises(ValueError, match=message):
+        AppSettings.from_env(env=env)
+
+
+def test_from_env_rejects_non_string_env_values() -> None:
+    env = {"APP_MAX_INPUT_TOKENS": 123}
+
+    with pytest.raises(ValueError, match="APP_MAX_INPUT_TOKENS"):
         AppSettings.from_env(env=env)
 
 
@@ -160,8 +214,12 @@ def test_from_env_reads_default_os_environ_when_env_argument_is_missing() -> Non
     with _temporary_os_env(
         overrides={
             "APP_MODEL_ID": "custom/model",
-            "APP_MAX_INPUT_CHARS": "2048",
+            "APP_MAX_INPUT_TOKENS": "2048",
             "APP_MAX_NEW_TOKENS": "123",
+            "APP_FRONTEND_MAX_INPUT_TOKENS": "700",
+            "APP_FRONTEND_MAX_CHARS_PER_TOKEN": "2",
+            "APP_FRONTEND_WARNING_RATIO": "0.8",
+            "APP_REPETITION_PENALTY": "1.3",
             "APP_DEVICE": "CUDA:0",
             "HF_HOME": "/tmp/home",
         }
@@ -169,9 +227,24 @@ def test_from_env_reads_default_os_environ_when_env_argument_is_missing() -> Non
         settings = AppSettings.from_env()
 
     assert settings.model_id == "custom/model"
-    assert settings.max_input_chars == 2048
+    assert settings.max_input_tokens == 2048
     assert settings.max_new_tokens == 123
+    assert settings.frontend_max_input_tokens == 700
+    assert settings.frontend_max_chars_per_token == 2
+    assert settings.frontend_warning_ratio == 0.8
+    assert settings.repetition_penalty == 1.3
     assert settings.device == "cuda:0"
     assert settings.hf_home == "/tmp/home"
     assert settings.hf_hub_cache is None
     assert settings.transformers_cache is None
+
+
+def test_frontend_limits_are_derived_from_runtime_settings() -> None:
+    settings = AppSettings(
+        frontend_max_input_tokens=400,
+        frontend_max_chars_per_token=2,
+        frontend_warning_ratio=0.75,
+    )
+
+    assert settings.resolve_frontend_max_input_chars() == 800
+    assert settings.resolve_frontend_warning_input_chars() == 600
