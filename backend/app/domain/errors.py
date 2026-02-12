@@ -41,7 +41,7 @@ class TextTooLongError(DomainError):
 
     code = "text_too_long"
 
-    def __init__(self, max_chars: int, actual_chars: int) -> None:
+    def __init__(self, max_tokens: int, actual_tokens: int) -> None:
         super().__init__(
-            f"Text exceeds max length of {max_chars} characters (received {actual_chars})."
+            f"Text exceeds max length of {max_tokens} tokens (received {actual_tokens})."
         )
