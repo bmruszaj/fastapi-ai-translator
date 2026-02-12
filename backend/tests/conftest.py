@@ -1,7 +1,8 @@
 from collections.abc import Callable, Iterator
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 import sys
+import types
 from typing import Any, TYPE_CHECKING
 
 import pytest
@@ -11,6 +12,84 @@ from fastapi.testclient import TestClient
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+
+
+def _install_optional_ml_stubs() -> None:
+    """Install lightweight torch/transformers stubs when optional ML deps are missing."""
+    try:
+        import torch  # noqa: F401
+    except ModuleNotFoundError:
+        torch_stub = types.ModuleType("torch")
+
+        class _FakeDevice:
+            def __init__(self, value: str) -> None:
+                normalized = value.strip().lower()
+                if normalized.startswith("cuda"):
+                    self.type = "cuda"
+                    if ":" in normalized:
+                        _, raw_index = normalized.split(":", maxsplit=1)
+                        self.index = int(raw_index)
+                    else:
+                        self.index = None
+                elif normalized == "mps":
+                    self.type = "mps"
+                    self.index = None
+                else:
+                    self.type = "cpu"
+                    self.index = None
+
+            def __str__(self) -> str:
+                if self.type == "cuda" and self.index is not None:
+                    return f"cuda:{self.index}"
+                return self.type
+
+        class _FakeCuda:
+            @staticmethod
+            def is_available() -> bool:
+                return False
+
+            @staticmethod
+            def device_count() -> int:
+                return 0
+
+        class _FakeMps:
+            @staticmethod
+            def is_available() -> bool:
+                return False
+
+        @contextmanager
+        def _fake_inference_mode() -> Iterator[None]:
+            yield
+
+        torch_stub.device = _FakeDevice
+        torch_stub.cuda = _FakeCuda()
+        torch_stub.backends = types.SimpleNamespace(mps=_FakeMps())
+        torch_stub.inference_mode = _fake_inference_mode
+        sys.modules["torch"] = torch_stub
+
+    try:
+        import transformers  # noqa: F401
+    except ModuleNotFoundError:
+        transformers_stub = types.ModuleType("transformers")
+
+        class _UnavailableLoader:
+            @staticmethod
+            def from_pretrained(*_args: Any, **_kwargs: Any) -> Any:
+                raise RuntimeError(
+                    "transformers dependency is not installed in this environment."
+                )
+
+        class _PreTrainedTokenizerBase:
+            pass
+
+        transformers_stub.AutoConfig = _UnavailableLoader
+        transformers_stub.AutoModelForSeq2SeqLM = _UnavailableLoader
+        transformers_stub.AutoTokenizer = _UnavailableLoader
+        transformers_stub.PreTrainedTokenizerBase = _PreTrainedTokenizerBase
+        sys.modules["transformers"] = transformers_stub
+
+
+_install_optional_ml_stubs()
 
 if TYPE_CHECKING:
     from app.adapters.outbound.nllb_translator import NllbRuntimeDependencies
