@@ -272,3 +272,13 @@ docker compose down -v
 
 - Require human review when error impact is high.
 - Inform users that output can contain mistakes or bias.
+
+## GUI Preview
+
+### Main view
+
+![Main GUI](./gui-main.png)
+
+### Translation result view
+
+![Translation GUI](./gui-translation.png)
