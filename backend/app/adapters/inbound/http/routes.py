@@ -11,10 +11,13 @@ from app.adapters.inbound.http.schemas import (
     TranslateResponse,
 )
 from app.application.dto import TranslateCommand
-from app.application.ports.errors import TranslatorPortError
+from app.application.ports.errors import InputTooLongError, TranslatorPortError
 from app.application.use_cases.get_health_status import GetHealthStatusUseCase
 from app.application.use_cases.translate_text import TranslateTextUseCase
-from app.core.dependencies import get_health_status_use_case, get_translate_use_case
+from app.core.dependencies import (
+    get_health_status_use_case,
+    get_translate_use_case,
+)
 from app.domain.errors import (
     DomainError,
     EmptyTextError,
@@ -47,6 +50,8 @@ def _map_domain_error(error: DomainError) -> JSONResponse:
 
 def _map_translator_error(error: TranslatorPortError) -> JSONResponse:
     """Map translation backend exceptions to API error responses."""
+    if isinstance(error, InputTooLongError):
+        return _to_error_response(status_code=422, code=error.code, message=str(error))
     return _to_error_response(
         status_code=503,
         code=error.code,
