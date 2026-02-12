@@ -55,7 +55,7 @@ def test_translate_returns_domain_error_for_invalid_payload(
         request_payload["text"] = "a" * (max_input_chars + 1)
 
     # When
-    response = client.post("/translate", json=request_payload)
+    response = client.post("/api/translate", json=request_payload)
     response_body = response.json()
 
     # Then
@@ -88,7 +88,7 @@ def test_translate_returns_validation_error_for_schema_invalid_payload(
     # Given
 
     # When
-    response = client.post("/translate", json=payload)
+    response = client.post("/api/translate", json=payload)
 
     # Then
     assert response.status_code == 422
@@ -107,7 +107,7 @@ def test_translate_returns_internal_error_for_runtime_error(
     fake_translator.translate_error = RuntimeError("boom")
 
     # When
-    response = client.post("/translate", json=default_translate_payload)
+    response = client.post("/api/translate", json=default_translate_payload)
 
     # Then
     assert response.status_code == 500
@@ -131,7 +131,7 @@ def test_translate_returns_unavailable_error_for_translator_port_failure(
     fake_translator.translate_error = TranslationExecutionError(sensitive_message)
 
     # When
-    response = client.post("/translate", json=default_translate_payload)
+    response = client.post("/api/translate", json=default_translate_payload)
 
     # Then
     assert response.status_code == 503
@@ -155,7 +155,7 @@ def test_translate_returns_domain_error_for_unknown_domain_error(
     )
 
     # When
-    response = client.post("/translate", json=default_translate_payload)
+    response = client.post("/api/translate", json=default_translate_payload)
 
     # Then
     assert response.status_code == 422

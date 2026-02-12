@@ -7,7 +7,7 @@ def test_health_returns_model_status(
     client: TestClient,
 ) -> None:
     # When
-    response = client.get("/health")
+    response = client.get("/api/health")
 
     # Then
     assert response.status_code == 200
@@ -26,7 +26,7 @@ def test_health_returns_unloaded_status_when_translator_not_ready(
     fake_translator.ready = False
 
     # When
-    response = client.get("/health")
+    response = client.get("/api/health")
 
     # Then
     assert response.status_code == 200
@@ -44,7 +44,7 @@ def test_health_returns_container_not_initialized_error_when_container_is_missin
     del client.app.state.container
 
     # When
-    response = client.get("/health")
+    response = client.get("/api/health")
 
     # Then
     assert response.status_code == 500
@@ -61,7 +61,7 @@ def test_health_returns_invalid_container_type_error(
     client.app.state.container = object()
 
     # When
-    response = client.get("/health")
+    response = client.get("/api/health")
 
     # Then
     assert response.status_code == 500

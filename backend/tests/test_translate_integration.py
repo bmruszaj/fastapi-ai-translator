@@ -8,7 +8,7 @@ def test_languages_returns_supported_languages(
     client: TestClient,
 ) -> None:
     # When
-    response = client.get("/languages")
+    response = client.get("/api/languages")
 
     # Then
     assert response.status_code == 200
@@ -27,7 +27,7 @@ def test_translate_returns_normalized_translation_for_valid_payload(
 
     # When
     response = client.post(
-        "/translate",
+        "/api/translate",
         json=translation_request,
     )
 

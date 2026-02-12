@@ -1,10 +1,12 @@
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.adapters.inbound.http.schemas import ErrorResponse
 from app.adapters.inbound.http.routes import router
@@ -14,6 +16,7 @@ from app.core.errors import ContainerAccessError
 
 ContainerFactory = Callable[[AppSettings], AppContainer]
 logger = logging.getLogger("uvicorn.error")
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 
 def create_app(
@@ -66,7 +69,12 @@ def create_app(
         error_response = ErrorResponse(code=error.code, message=str(error))
         return JSONResponse(status_code=500, content=error_response.model_dump())
 
-    app_instance.include_router(router)
+    app_instance.include_router(router, prefix="/api")
+    app_instance.mount(
+        "/",
+        StaticFiles(directory=str(FRONTEND_DIR), html=True),
+        name="frontend",
+    )
     return app_instance
 
 
