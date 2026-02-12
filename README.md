@@ -121,6 +121,7 @@ Application URLs:
 
 - `http://localhost:8000` - frontend
 - `http://localhost:8000/api/health` - health endpoint
+- `http://localhost:8000/docs` - FastAPI OpenAPI docs
 
 ### Optional runtime configuration
 
@@ -156,6 +157,7 @@ Application URLs:
 
 - `http://localhost:8000` - frontend
 - `http://localhost:8000/api/health` - health endpoint
+- `http://localhost:8000/docs` - FastAPI OpenAPI docs
 
 Notes:
 
