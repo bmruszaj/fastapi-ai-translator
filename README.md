@@ -1,6 +1,28 @@
 # Translation App Documentation
 
-Technical documentation for the translation app.
+This project is a multilingual translation web app built with FastAPI, a modular hexagonal architecture, and the `facebook/nllb-200-distilled-600M` model. It demonstrates how to integrate AI into a production-minded backend with clear separation of concerns, reusable components, and container-ready deployment.
+
+## Highlights
+
+- Translates text across 10 fixed languages through a simple web interface and API.
+- Uses hexagonal architecture to separate routes, use cases, domain rules, and the AI adapter.
+- Loads the model once at startup and reuses it across requests with strict validation and stable error handling.
+- Runs locally with Python or Docker and is structured for container-based deployment.
+
+## Quick Start
+
+- Fastest run: `docker compose up --build`
+- App: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+
+## Stack and Rationale
+
+- FastAPI + Uvicorn for the API layer.
+- Hexagonal architecture for modular backend design.
+- Hugging Face Transformers + PyTorch + NLLB for local multilingual inference.
+- HTML, CSS, and vanilla JavaScript for the frontend.
+- Docker and Docker Compose for reproducible setup.
+
 
 ## Requirement Coverage
 
@@ -12,6 +34,16 @@ Technical documentation for the translation app.
 | 4. Running locally | Run Locally, Run with Docker |
 | 5. Scalability and cloud deployment | Scalability and Deployment |
 | 6. Approach, architecture, setup, risks/ethics | Architecture, Run Locally, Run with Docker, Risks and Ethics |
+
+## GUI Preview
+
+### Main view
+
+![Main GUI](./gui-main.png)
+
+### Translation result view
+
+![Translation GUI](./gui-translation.png)
 
 ## Architecture
 
@@ -275,12 +307,3 @@ docker compose down -v
 - Require human review when error impact is high.
 - Inform users that output can contain mistakes or bias.
 
-## GUI Preview
-
-### Main view
-
-![Main GUI](./gui-main.png)
-
-### Translation result view
-
-![Translation GUI](./gui-translation.png)
